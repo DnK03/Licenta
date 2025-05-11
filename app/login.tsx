@@ -1,176 +1,307 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Image } from 'react-native';
-import { Link, useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  ActivityIndicator,
+  Alert
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/auth';
 
 export default function LoginScreen() {
+  const router = useRouter();
+  const { login } = useAuth();
+  
+  // State pentru datele de login
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
-  const { signIn } = useAuth();
-
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [userTypeSelection, setUserTypeSelection] = useState('user'); // 'user' sau 'driver'
+  
+  // Funcție pentru autentificare
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert('Eroare', 'Te rugăm să completezi toate câmpurile.');
       return;
     }
-
-    setLoading(true);
+    
+    setIsLoading(true);
     
     try {
-      const API_URL = 'http://10.0.2.2/transport-api/'; // For Android emulator
-      // Use your computer's IP address for physical devices
-      // const API_URL = 'http://192.168.1.100/transport-api/';
+      // Apelăm funcția de login din contextul de autentificare
+      await login(email, password, userTypeSelection);
       
-      const response = await fetch(`${API_URL}login.php`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        // Call the signIn function from auth context
-        await signIn(result.user);
-        // Navigate to home screen
-        router.replace('/');
+      // Redirecționăm utilizatorul în funcție de tipul de cont
+      if (userTypeSelection === 'driver') {
+        router.replace('/driver-profile');
       } else {
-        Alert.alert('Error', result.message);
+        router.replace('/(tabs)');
       }
     } catch (error) {
-      Alert.alert('Error', 'Network error. Please try again.');
-      console.error(error);
+      Alert.alert('Eroare de autentificare', 'Email sau parolă incorectă. Te rugăm să încerci din nou.');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
-
+  
   return (
-    <View style={styles.container}>
-      <View style={styles.logoContainer}>
-        <Image 
-          source={require('../assets/images/logo.png')} 
-          style={styles.logo}
-          resizeMode="contain"
-        />
-      </View>
-      
-      <Text style={styles.title}>Welcome Back</Text>
-      <Text style={styles.subtitle}>Sign in to continue</Text>
-      
-      <View style={styles.form}>
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.logoContainer}>
+          <Image
+            source={require('../assets/images/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={styles.appName}>AplicatieLicenta</Text>
+        </View>
         
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-        
-        <TouchableOpacity 
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleLogin}
-          disabled={loading}
-        >
-          <Text style={styles.buttonText}>
-            {loading ? 'Signing in...' : 'Sign In'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-      
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Don't have an account? </Text>
-        <Link href="/register" asChild>
-          <TouchableOpacity>
-            <Text style={styles.footerLink}>Sign Up</Text>
+        <View style={styles.formContainer}>
+          <Text style={styles.title}>Autentificare</Text>
+          
+          {/* Selector pentru tipul de utilizator */}
+          <View style={styles.userTypeContainer}>
+            <TouchableOpacity
+              style={[
+                styles.userTypeButton,
+                userTypeSelection === 'user' && styles.userTypeButtonActive
+              ]}
+              onPress={() => setUserTypeSelection('user')}
+            >
+              <Ionicons
+                name="person"
+                size={20}
+                color={userTypeSelection === 'user' ? '#fff' : '#007BFF'}
+              />
+              <Text
+                style={[
+                  styles.userTypeText,
+                  userTypeSelection === 'user' && styles.userTypeTextActive
+                ]}
+              >
+                Pasager
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[
+                styles.userTypeButton,
+                userTypeSelection === 'driver' && styles.userTypeButtonActive
+              ]}
+              onPress={() => setUserTypeSelection('driver')}
+            >
+              <Ionicons
+                name="car"
+                size={20}
+                color={userTypeSelection === 'driver' ? '#fff' : '#007BFF'}
+              />
+              <Text
+                style={[
+                  styles.userTypeText,
+                  userTypeSelection === 'driver' && styles.userTypeTextActive
+                ]}
+              >
+                Șofer
+              </Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.inputContainer}>
+            <Ionicons name="mail-outline" size={20} color="#999" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          </View>
+          
+          <View style={styles.inputContainer}>
+            <Ionicons name="lock-closed-outline" size={20} color="#999" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Parolă"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+            />
+            <TouchableOpacity
+              style={styles.passwordToggle}
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              <Ionicons
+                name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                size={20}
+                color="#999"
+              />
+            </TouchableOpacity>
+          </View>
+          
+          <TouchableOpacity
+            style={styles.forgotPassword}
+            onPress={() => router.push('/forgot-password')}
+          >
+            <Text style={styles.forgotPasswordText}>Ai uitat parola?</Text>
           </TouchableOpacity>
-        </Link>
-      </View>
-    </View>
+          
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={handleLogin}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.loginButtonText}>Autentificare</Text>
+            )}
+          </TouchableOpacity>
+          
+          <View style={styles.registerContainer}>
+            <Text style={styles.registerText}>Nu ai un cont? </Text>
+            <TouchableOpacity onPress={() => {
+              if (userTypeSelection === 'driver') {
+                router.push('/driver-register');
+              } else {
+                router.push('/register');
+              }
+            }}>
+              <Text style={styles.registerLink}>Înregistrează-te</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-    justifyContent: 'center',
     backgroundColor: '#fff',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 30,
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginTop: 60,
+    marginBottom: 30,
   },
   logo: {
-    width: 120,
-    height: 120,
+    width: 100,
+    height: 100,
+  },
+  appName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#007BFF',
+    marginTop: 10,
+  },
+  formContainer: {
+    paddingHorizontal: 30,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 10,
+    color: '#333',
+    marginBottom: 30,
     textAlign: 'center',
   },
-  subtitle: {
+  userTypeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  userTypeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '48%',
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#007BFF',
+  },
+  userTypeButtonActive: {
+    backgroundColor: '#007BFF',
+  },
+  userTypeText: {
+    marginLeft: 8,
     fontSize: 16,
-    color: '#666',
-    marginBottom: 30,
-    textAlign: 'center',
+    color: '#007BFF',
   },
-  form: {
-    marginBottom: 30,
+  userTypeTextActive: {
+    color: '#fff',
   },
-  input: {
-    height: 50,
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 8,
     marginBottom: 15,
     paddingHorizontal: 15,
+    height: 50,
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    height: 50,
     fontSize: 16,
   },
-  button: {
+  passwordToggle: {
+    padding: 5,
+  },
+  forgotPassword: {
+    alignSelf: 'flex-end',
+    marginBottom: 20,
+  },
+  forgotPasswordText: {
+    color: '#007BFF',
+    fontSize: 14,
+  },
+  loginButton: {
     backgroundColor: '#007BFF',
-    height: 50,
     borderRadius: 8,
+    height: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 10,
+    marginBottom: 20,
   },
-  buttonDisabled: {
-    backgroundColor: '#cccccc',
-  },
-  buttonText: {
-    color: 'white',
+  loginButtonText: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  footer: {
+  registerContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'center',
   },
-  footerText: {
-    fontSize: 16,
+  registerText: {
     color: '#666',
+    fontSize: 14,
   },
-  footerLink: {
-    fontSize: 16,
+  registerLink: {
     color: '#007BFF',
+    fontSize: 14,
     fontWeight: 'bold',
   },
 });
